@@ -40,6 +40,7 @@
 
 
 (defn- cluster-seq [s dist]
+  "Cluster elements of s with a difference more than dist"
   (loop [remaining s
          cur []
          ret []]
@@ -72,6 +73,7 @@
                 change-types))))
 
 (defn- line-index [changeset target-line]
+  "Map a line number to an element index of :lines in changeset"
   (if (seq (:change-map changeset))
     (let [line-count (count (:lines changeset))
           changemap (:change-map changeset)]
@@ -116,6 +118,7 @@
     []))
 
 (defn- shift-change-map [changemap at]
+  "Shift values of changemap up where line numbers > at"
   (let [line-numbers (sort (keys changemap))
         unchanged-line-numbers (filter #(< % at) line-numbers)
         changed-line-numbers (filter #(>= % at) line-numbers)
