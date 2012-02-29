@@ -11,7 +11,7 @@ user> (use 'tailor.diff)
 nil
 user> (def changes (atom (create-changeset ["a" "b" "c" "d" "e"])))
 #'user/changes
-user> (swap! changes insert-line "f" 6)
+user> (swap! changes append-line "f" 6)
 {:lines ("a" "b" "c" "d" "e" "f"), :offset 0, :change-map {5 :add}}
 user> (swap! changes change-line "A" 1)
 {:lines ("a" "A" "b" "c" "d" "e" "f"), :offset 0, :change-map {1 :add, 6 :add, 0 :remove}}
