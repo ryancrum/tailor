@@ -46,3 +46,33 @@
     (is (= 0 (#'tailor.diff/line-index @changeset 1)))
     (is (= 1 (#'tailor.diff/line-index @changeset 2)))))
 
+(deftest shift-change-map
+  (is (= {2 :add 4 :add}
+         (#'tailor.diff/shift-change-map {2 :add 3 :add} 3)))
+  (is (= {2 :add}
+         (#'tailor.diff/shift-change-map {2 :add} 3))))
+
+(deftest test-insert-line
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (swap! changeset insert-line "B" 2)
+    (is (= ["a" "B" "b" "c"] (:lines @changeset)))
+    (is (= {1 :add} (:change-map @changeset)))))
+
+(deftest test-append-line
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (swap! changeset append-line "B" 2)
+    (is (= ["a" "b" "B" "c"] (:lines @changeset)))
+    (is (= {2 :add} (:change-map @changeset)))))
+
+(deftest test-remove-line
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (swap! changeset remove-line 2)
+    (is (= ["a" "b" "c"] (:lines @changeset)))
+    (is (= {1 :remove} (:change-map @changeset)))))
+
+(deftest test-change-line
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (swap! changeset change-line "B" 2)
+    (is (= ["a" "b" "B" "c"] (:lines @changeset)))
+    (is (= {2 :add 1 :remove} (:change-map @changeset)))))
+
