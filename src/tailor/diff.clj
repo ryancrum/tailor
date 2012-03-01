@@ -63,14 +63,20 @@
   (count (filter #(= % change-type)
                  (vals change-map))))
 
-(defn- net-change-count [{change-map :change-map}]
-  (let [change-types (vals change-map)]
-    (reduce +
-           0
-           (map #(case %
-                       :add 1
-                       :remove -1)
-                change-types))))
+(defn- net-change-count
+  ([{change-map :change-map} up-to]
+     (let [change-types (if (= :all up-to)
+                          (vals change-map)
+                          (vals (select-keys change-map
+                                             (range up-to))))]
+       (reduce +
+               0
+               (map #(case %
+                           :add 1
+                           :remove -1)
+                    change-types))))
+  ([changeset]
+     (net-change-count changeset :all)))
 
 (defn- convert-position [changeset target to-type]
   (let [line-count (count (:lines changeset))
@@ -101,6 +107,7 @@
          (dec (count (:lines changeset))))))
 
 (defn- index-line [changeset index]
+  "Map an index to a line number in changeset"
   (if (seq (:change-map changeset))
     (convert-position changeset index :line)
     (min (inc index)
@@ -108,7 +115,8 @@
 
 (defn- cluster-changesets [changeset hunk-size]
   (let [{change-map :change-map
-         offset :offset
+         pre-offset :pre-offset
+         post-offset :post-offset
          lines :lines} changeset]
     (if (seq change-map)
       (let [change-keys (sort (keys change-map))
@@ -120,10 +128,14 @@
                   [(first key-list) (last key-list)]
                   hunk-size
                   (count lines))
-                 [start end] hunk-range]
+                 [start end] hunk-range
+                 post-offset (+ (index-line changeset start)
+                                (dec post-offset)) ;; offset is 1-based
+                 pre-offset (- post-offset
+                               (net-change-count changeset start))]
              {:lines (lazy-subseq lines hunk-range)
-              :offset (+ (index-line changeset start)
-                         (dec offset)) ;; offset is 1-based
+              :pre-offset pre-offset
+              :post-offset post-offset
               :change-map (apply merge
                                  (map
                                   (fn [k] {(- k start)
@@ -200,10 +212,11 @@
              net-change (net-change-count changeset)
              initial-count (- size (change-count changeset :add))
              after-count (+ initial-count net-change)
-             offset (:offset changeset)]
+             pre-offset (:pre-offset changeset)
+             post-offset (:post-offset changeset)]
          (str
-          (generate-hunk-header offset initial-count
-                                offset after-count)
+          (generate-hunk-header pre-offset initial-count
+                                post-offset after-count)
           "\n"
           (formatted-hunk changeset)))
        "")))
@@ -212,7 +225,8 @@
   "Create a changeset for the given set of base lines."
   [lines]
   {:lines lines
-   :offset 1
+   :pre-offset 1
+   :post-offset 1
    :change-map {}})
 
 (defn diff-file-header
