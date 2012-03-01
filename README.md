@@ -28,7 +28,7 @@ user> (print (file-diff "tmp/moose.txt" @changes 1))
  b
 -c
  d
-@@ -5,1 +5,2 @@
+@@ -5,1 +4,2 @@
  e
 +f
 nil
