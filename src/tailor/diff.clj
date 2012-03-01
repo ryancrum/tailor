@@ -72,10 +72,8 @@
                        :remove -1)
                 change-types))))
 
-(defn- line-index [changeset target-line]
-  "Map a line number to an element index of :lines in changeset"
-  (if (seq (:change-map changeset))
-    (let [line-count (count (:lines changeset))
+(defn- convert-position [changeset target to-type]
+  (let [line-count (count (:lines changeset))
           changemap (:change-map changeset)]
       (loop [current-index 0
              current-line 1]
@@ -85,29 +83,26 @@
             (if (= :remove op)
               (recur (inc current-index)
                      current-line)
-              (if (= current-line target-line)
-                current-index
-                (recur (inc current-index)
-                       (inc current-line))))))))
+              (case to-type
+                    :index (if (= current-line target)
+                             current-index
+                             (recur (inc current-index)
+                                    (inc current-line)))
+                    :line (if (= current-index target)
+                            current-line
+                            (recur (inc current-index)
+                                   (inc current-line))))))))))
+
+(defn- line-index [changeset target-line]
+  "Map a line number to an element index of :lines in changeset"
+  (if (seq (:change-map changeset))
+    (convert-position changeset target-line :index)
     (min (dec target-line)
          (dec (count (:lines changeset))))))
 
 (defn- index-line [changeset index]
   (if (seq (:change-map changeset))
-    (let [line-count (count (:lines changeset))
-          changemap (:change-map changeset)]
-      (loop [current-index 0
-             current-line 1]
-        (let [op (get changemap current-index)]
-          (if (>= current-index line-count)
-            (dec current-line)
-            (if (= :remove op)
-              (recur (inc current-index)
-                     current-line)
-              (if (= current-index index)
-                current-line
-                (recur (inc current-index)
-                       (inc current-line))))))))
+    (convert-position changeset index :line)
     (min (inc index)
          (count (:lines changeset)))))
 
