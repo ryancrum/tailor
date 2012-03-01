@@ -18,6 +18,8 @@ user> (swap! changes change-line "A" 1)
 user> (swap! changes remove-line 3)
 {:lines ("a" "A" "b" "c" "d" "e" "f"), :offset 0, :change-map {3 :remove, 1 :add, 6 :add, 0 :remove}}
 user> (print (file-diff "tmp/moose.txt" @changes 1))
+```
+```diff
 --- tmp/moose.txt
 +++ tmp/moose.txt
 @@ -1,4 +1,3 @@
