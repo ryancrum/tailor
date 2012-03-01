@@ -6,7 +6,7 @@ A unified diff format generator for clojure.
 
 Tailor is a simple helper library that helps with the generation and formatting of unified diff files.
 
-```
+```clojure
 user> (use 'tailor.diff)
 nil
 user> (def changes (atom (create-changeset ["a" "b" "c" "d" "e"])))
