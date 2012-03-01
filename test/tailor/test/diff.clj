@@ -31,7 +31,7 @@
   (is (= -1 (#'tailor.diff/net-change-count
              {:change-map {0 :add 1 :remove 2 :remove}}))))
 
-(deftest line-index
+(deftest test-line-index
   (let [changeset (atom (create-changeset ["a" "b" "c"]))]
     (is (= 2 (#'tailor.diff/line-index @changeset 3)))
     (is (= 0 (#'tailor.diff/line-index @changeset 1)))
@@ -45,6 +45,23 @@
     (swap! changeset insert-line "A" 1)
     (is (= 0 (#'tailor.diff/line-index @changeset 1)))
     (is (= 1 (#'tailor.diff/line-index @changeset 2)))))
+
+(deftest test-index-line
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (is (= 3 (#'tailor.diff/index-line @changeset 2)))
+    (is (= 2 (#'tailor.diff/index-line @changeset 1)))
+    (is (= 1 (#'tailor.diff/index-line @changeset 0)))
+    (is (= 3 (#'tailor.diff/index-line @changeset 4)))
+    (swap! changeset append-line "z" 4)
+    (is (= 4 (#'tailor.diff/index-line @changeset 3)))
+    (is (= 3 (#'tailor.diff/index-line @changeset 2)))
+    (swap! changeset remove-line 3)
+    (is (= 3 (#'tailor.diff/index-line @changeset 3)))
+    (is (= 3 (#'tailor.diff/index-line @changeset 2)))
+    (is (= 2 (#'tailor.diff/index-line @changeset 1)))
+    (swap! changeset insert-line "A" 1)
+    (is (= 1 (#'tailor.diff/index-line @changeset 0)))
+    (is (= 3 (#'tailor.diff/index-line @changeset 2)))))
 
 (deftest shift-change-map
   (is (= {2 :add 4 :add}
@@ -76,3 +93,18 @@
     (is (= ["a" "b" "B" "c"] (:lines @changeset)))
     (is (= {2 :add 1 :remove} (:change-map @changeset)))))
 
+(deftest test-create-changeset
+  (is (= {:lines ["meat" "juice"] :offset 1 :change-map {}} (create-changeset ["meat" "juice"]))))
+
+(deftest test-full-changeset-diff
+  (let [changeset (atom (create-changeset ["a" "b" "c"]))]
+    (swap! changeset change-line "B" 2)
+    (is (= (changeset-diff @changeset)
+           "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n"))))
+
+(deftest test-partial-changeset-diffs
+  (let [changeset (atom (create-changeset ["a" "b" "c" "e" "f" "g" "i"]))]
+    (swap! changeset change-line "B" 2)
+    (swap! changeset insert-line "h" 7)
+    (is (= (changeset-diff @changeset 1)
+           "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n@@ -6,2 +6,3 @@\n g\n+h\n i\n"))))

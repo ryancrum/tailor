@@ -92,30 +92,50 @@
     (min (dec target-line)
          (dec (count (:lines changeset))))))
 
-(defn- cluster-changesets [{change-map :change-map
-                               offset :offset
-                               lines :lines}
-                           hunk-size]
-  (if (seq change-map)
-    (let [change-keys (sort (keys change-map))
-          clustered-keys (cluster-seq change-keys (inc hunk-size))]
-      (map
-       (fn [key-list]
-         (let [hunk-range
-               (clamp-window-to-range
-                [(first key-list) (last key-list)]
-                hunk-size
-                (count lines))
-               [start end] hunk-range]
-           {:lines (lazy-subseq lines hunk-range)
-            :offset (+ start offset)
-            :change-map (apply merge
-                               (map
-                                (fn [k] {(- k start)
-                                         (get change-map k)})
-                                key-list))}))
-       clustered-keys))
-    []))
+(defn- index-line [changeset index]
+  (if (seq (:change-map changeset))
+    (let [line-count (count (:lines changeset))
+          changemap (:change-map changeset)]
+      (loop [current-index 0
+             current-line 1]
+        (let [op (get changemap current-index)]
+          (if (>= current-index line-count)
+            (dec current-line)
+            (if (= :remove op)
+              (recur (inc current-index)
+                     current-line)
+              (if (= current-index index)
+                current-line
+                (recur (inc current-index)
+                       (inc current-line))))))))
+    (min (inc index)
+         (count (:lines changeset)))))
+
+(defn- cluster-changesets [changeset hunk-size]
+  (let [{change-map :change-map
+         offset :offset
+         lines :lines} changeset]
+    (if (seq change-map)
+      (let [change-keys (sort (keys change-map))
+            clustered-keys (cluster-seq change-keys (inc hunk-size))]
+        (map
+         (fn [key-list]
+           (let [hunk-range
+                 (clamp-window-to-range
+                  [(first key-list) (last key-list)]
+                  hunk-size
+                  (count lines))
+                 [start end] hunk-range]
+             {:lines (lazy-subseq lines hunk-range)
+              :offset (+ (index-line changeset start)
+                         (dec offset)) ;; offset is 1-based
+              :change-map (apply merge
+                                 (map
+                                  (fn [k] {(- k start)
+                                           (get change-map k)})
+                                  key-list))}))
+         clustered-keys))
+      [])))
 
 (defn- shift-change-map [changemap at]
   "Shift values of changemap up where line numbers > at"
@@ -187,8 +207,8 @@
              after-count (+ initial-count net-change)
              offset (:offset changeset)]
          (str
-          (generate-hunk-header (inc offset) initial-count
-                                (inc offset) after-count)
+          (generate-hunk-header offset initial-count
+                                offset after-count)
           "\n"
           (formatted-hunk changeset)))
        "")))
@@ -197,7 +217,7 @@
   "Create a changeset for the given set of base lines."
   [lines]
   {:lines lines
-   :offset 0
+   :offset 1
    :change-map {}})
 
 (defn diff-file-header
