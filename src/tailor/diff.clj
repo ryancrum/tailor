@@ -79,6 +79,15 @@
      (net-change-count changeset :all)))
 
 (defn- convert-position [changeset target to-type]
+  "Converts file line numbers to changeset array index numbers
+   and back.
+
+   i.e.
+   (convert-position cs 5 :index) will return what the 0-based
+      array index in changeset cs is.
+
+   (convert-position cs 3 :line) will return what the line-number
+      of the file post-changeset will be for the array index 3."
   (let [line-count (count (:lines changeset))
           changemap (:change-map changeset)]
       (loop [current-index 0
@@ -94,7 +103,7 @@
                              current-index
                              (recur (inc current-index)
                                     (inc current-line)))
-                    :line (if (= current-index target)
+                    :line (if (>= current-index target)
                             current-line
                             (recur (inc current-index)
                                    (inc current-line))))))))))
@@ -107,13 +116,22 @@
          (dec (count (:lines changeset))))))
 
 (defn- index-line [changeset index]
-  "Map an index to a line number in changeset"
+  "Map an index of :lines in changeset to a line number"
   (if (seq (:change-map changeset))
     (convert-position changeset index :line)
     (min (inc index)
          (count (:lines changeset)))))
 
 (defn- cluster-changesets [changeset hunk-size]
+  "Splits changeset into multiple changesets per hunk-size.
+
+   For example:
+   If hunk-size is 2 and changeset contains changes that
+   are more than 2 lines apart, then this will return 2 changesets.
+
+   If hunk-size is 2 and the changeset contains changes that are
+   all within the immediate vicinity of each other, only one changeset
+   will be return."
   (let [{change-map :change-map
          pre-offset :pre-offset
          post-offset :post-offset
@@ -157,6 +175,8 @@
      changed-line-numbers)))
 
 (defn insert-line [changeset line before-line-number]
+  "Inserts a line into changeset before the line at
+   `before-line-number`."
   (let [index (line-index changeset before-line-number)
         lines (:lines changeset)]
     (merge changeset
@@ -171,6 +191,8 @@
                           :add)})))
 
 (defn append-line [changeset line after-line-number]
+  "Appends a line into changeset after the line at
+   `after-line-number`."
   (let [index (inc (line-index changeset after-line-number))
         lines (:lines changeset)]
     (merge changeset
@@ -185,6 +207,7 @@
                           :add)})))
 
 (defn remove-line [changeset line-number]
+  "Removes the line from changeset at `line-number`."
   (let [index (line-index changeset line-number)]
     (merge changeset
            {:change-map
@@ -192,17 +215,19 @@
                    {index :remove})})))
 
 (defn change-line [changeset change-to line-number]
+  "Modify `line-number` of changeset to `change-to`."
   (insert-line
    (remove-line changeset line-number)
    change-to
    line-number))
 
 (defn changeset-diff
-  "Create a diff string for a given changeset."
+  "Create a diff string for a given changeset.
+
+   If hunk-size is unspecified it will create a big diff for the
+   entire changeset, otherwise it will split up the changeset into
+   hunks using hunk-size as a minimum size guide and create diffs."
   ([changeset hunk-size]
-     ;; If hunk-size is unspecified it will create a big diff for the
-     ;; entire changeset, otherwise it will split up the changeset into
-     ;; hunks using hunk-size as a minimum size guide and create diffs.
      (reduce str
              (map changeset-diff
                   (cluster-changesets changeset hunk-size))))
@@ -230,16 +255,16 @@
    :change-map {}})
 
 (defn diff-file-header
-  "Generate a diff file header using the given relative path."
-  [relative-path]
-  (str "--- " relative-path "\n"
-       "+++ " relative-path "\n"))
+  "Generate a diff file header using the given path."
+  [path]
+  (str "--- " path "\n"
+       "+++ " path "\n"))
 
 (defn file-diff
-  "Generate a full file diff."
-  ([relative-path changeset]
+  "Generate a full file diff for changeset with relative-path as the filename."
+  ([changeset relative-path]
      (file-diff relative-path changeset 3))
-  ([relative-path changeset hunk-size]
+  ([changeset relative-path hunk-size]
      (str
       (diff-file-header relative-path)
       (changeset-diff changeset hunk-size))))

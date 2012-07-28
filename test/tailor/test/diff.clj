@@ -61,7 +61,15 @@
     (is (= 2 (#'tailor.diff/index-line @changeset 1)))
     (swap! changeset insert-line "A" 1)
     (is (= 1 (#'tailor.diff/index-line @changeset 0)))
-    (is (= 3 (#'tailor.diff/index-line @changeset 2)))))
+    (is (= 3 (#'tailor.diff/index-line @changeset 2))))
+  
+  (let [changeset (-> (create-changeset ["a" "b" "c"])
+                      (remove-line 1))]
+    ;; tests for a specific case where the first line has been
+    ;;  removed
+    (is (= 1 (#'tailor.diff/index-line changeset 0)))
+    (is (= 2 (#'tailor.diff/index-line changeset 2)))
+    (is (= 2 (#'tailor.diff/index-line changeset 5)))))
 
 (deftest shift-change-map
   (is (= {2 :add 4 :add}
