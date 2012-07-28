@@ -9,16 +9,14 @@ Tailor is a simple helper library that helps with the generation and formatting 
 ```clojure
 user> (use 'tailor.diff)
 nil
-user> (def changes (atom (create-changeset ["a" "b" "c" "d" "e"])))
-#'user/changes
-user> (swap! changes append-line "f" 6)
-{:lines ("a" "b" "c" "d" "e" "f"), :offset 0, :change-map {5 :add}}
-user> (swap! changes change-line "A" 1)
-{:lines ("a" "A" "b" "c" "d" "e" "f"), :offset 0, :change-map {1 :add, 6 :add, 0 :remove}}
-user> (swap! changes remove-line 3)
-{:lines ("a" "A" "b" "c" "d" "e" "f"), :offset 0, :change-map {3 :remove, 1 :add, 6 :add, 0 :remove}}
-user> (print (file-diff "tmp/moose.txt" @changes 1))
+user> (-> (create-changeset ["a" "b" "c" "d" "e"])
+          (append-line "f" 6)
+          (change-line "A" 1)
+          (remove-line 3)
+          (file-diff "tmp/moose.txt" 1)
+          (print))
 ```
+
 ```diff
 --- tmp/moose.txt
 +++ tmp/moose.txt
@@ -31,7 +29,6 @@ user> (print (file-diff "tmp/moose.txt" @changes 1))
 @@ -5,1 +4,2 @@
  e
 +f
-nil
 ````
 
 
